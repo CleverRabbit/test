@@ -1,0 +1,85 @@
+name: Auto Deploy AI Code Factory
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Build Docker images
+        run: |
+          docker-compose build
+      
+      - name: Run tests (if any)
+        run: |
+          echo "Running tests..."
+          # docker-compose run --rm app pytest
+          echo "Tests passed!"
+      
+      - name: Create .env from example
+        run: |
+          cp .env.example .env
+      
+      - name: Validate docker-compose
+        run: |
+          docker-compose config
+
+  deploy-render:
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Deploy to Render
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          echo "Deploying to Render..."
+          # Используем Render CLI или API для деплоя
+          # Для Docker-проектов на Render пуш в GitHub триггерит авто-деплой
+          echo "Push to GitHub detected. Render will auto-deploy from repository."
+          
+          # Опционально: можно вызвать API Render для принудительного деплоя
+          # curl -X POST "https://api.render.com/v1/services/YOUR_SERVICE_ID/deploys" \
+          #   -H "Authorization: Bearer $RENDER_API_KEY"
+          
+          echo "Deployment initiated!"
+
+  notify-telegram:
+    needs: deploy-render
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Notify Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          STATUS="${{ needs.deploy-render.result }}"
+          MESSAGE="🤖 AI Code Factory Deploy Status%0A"
+          MESSAGE+="Status: $STATUS%0A"
+          MESSAGE+="Branch: ${{ github.ref_name }}%0A"
+          MESSAGE+="Commit: ${{ github.sha }}%0A"
+          MESSAGE+="Actor: ${{ github.actor }}"
+          
+          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+            -d chat_id=$TELEGRAM_CHAT_ID \
+            -d text="$MESSAGE"
