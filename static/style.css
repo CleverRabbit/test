@@ -548,3 +548,77 @@ code {
         height: calc(100vh - 300px);
     }
 }
+
+/* Стили для самотестирования */
+.selftest-summary {
+    padding: 15px;
+    background: var(--bg-color);
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.selftest-summary h3 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.status-ok {
+    color: var(--success-color);
+    font-weight: bold;
+}
+
+.status-warning {
+    color: var(--warning-color);
+    font-weight: bold;
+}
+
+.status-error {
+    color: var(--danger-color);
+    font-weight: bold;
+}
+
+.selftest-details {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.selftest-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.selftest-item.status-ok {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: var(--success-color);
+}
+
+.selftest-item.status-warning {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: var(--warning-color);
+}
+
+.selftest-item.status-error {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: var(--danger-color);
+}
+
+.selftest-icon {
+    font-size: 1.5rem;
+    min-width: 24px;
+}
+
+.selftest-name {
+    font-weight: 600;
+    min-width: 120px;
+    text-transform: capitalize;
+}
+
+.selftest-message {
+    color: var(--text-muted);
+    flex: 1;
+}

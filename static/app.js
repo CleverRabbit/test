@@ -131,3 +131,65 @@ window.AIUtils = {
 };
 
 console.log('AI Developer utilities loaded');
+
+// ==================== Модуль самотестирования ====================
+
+async function runSelfTest() {
+    const selftestModal = document.getElementById('selftestModal');
+    const selftestResults = document.getElementById('selftestResults');
+    
+    if (!selftestModal || !selftestResults) return;
+    
+    selftestModal.style.display = 'flex';
+    selftestResults.innerHTML = '<div class="loading">Выполнение тестов...</div>';
+    
+    try {
+        const results = await AIUtils.apiRequest('/api/system/selftest');
+        
+        let html = '<div class="selftest-summary">';
+        html += `<h3>Общий статус: <span class="status-${results.status}">${results.status === 'ok' ? 'OK' : results.status.toUpperCase()}</span></h3>`;
+        html += '</div><div class="selftest-details">';
+        
+        for (const [component, result] of Object.entries(results.components)) {
+            const icon = result.status === 'ok' ? '✓' : result.status === 'warning' ? '⚠' : '✗';
+            html += `
+                <div class="selftest-item status-${result.status}">
+                    <span class="selftest-icon">${icon}</span>
+                    <span class="selftest-name">${component}</span>
+                    <span class="selftest-message">${result.message}</span>
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        html += '<button onclick="closeSelfTestModal()" class="btn btn-primary" style="margin-top: 15px;">Закрыть</button>';
+        
+        selftestResults.innerHTML = html;
+    } catch (error) {
+        selftestResults.innerHTML = `
+            <div class="selftest-item status-error">
+                <span class="selftest-icon">✗</span>
+                <span class="selftest-name">Ошибка теста</span>
+                <span class="selftest-message">${error.message}</span>
+            </div>
+            <button onclick="closeSelfTestModal()" class="btn btn-primary" style="margin-top: 15px;">Закрыть</button>
+        `;
+    }
+}
+
+function closeSelfTestModal() {
+    const selftestModal = document.getElementById('selftestModal');
+    if (selftestModal) {
+        selftestModal.style.display = 'none';
+    }
+}
+
+// Закрытие модального окна по клику вне его
+window.addEventListener('click', (e) => {
+    const selftestModal = document.getElementById('selftestModal');
+    if (e.target === selftestModal) {
+        selftestModal.style.display = 'none';
+    }
+});
+
+console.log('AI Developer self-test module loaded');

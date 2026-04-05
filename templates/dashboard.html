@@ -87,6 +87,14 @@
                         </div>
                     </div>
 
+                    <div class="settings-card">
+                        <h3>Диагностика системы</h3>
+                        <p style="margin-bottom: 10px; color: #666;">Проверьте работоспособность всех компонентов системы</p>
+                        <button onclick="runSelfTest()" class="btn btn-primary">
+                            🔍 Запустить самотестирование
+                        </button>
+                    </div>
+
                     <div class="settings-card admin-only" style="display: none;">
                         <h3>Управление контейнерами</h3>
                         <div id="containers-list">
@@ -469,5 +477,15 @@
             return div.innerHTML;
         }
     </script>
+
+    <!-- Модальное окно самотестирования -->
+    <div id="selftestModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2>🔍 Самотестирование системы</h2>
+            <div id="selftestResults">
+                <!-- Результаты тестов -->
+            </div>
+        </div>
+    </div>
 </body>
 </html>

@@ -570,6 +570,79 @@ def api_save_file(project_id, filepath):
 
 # ==================== Запуск приложения ====================
 
+@app.route('/api/system/selftest', methods=['GET'])
+@login_required
+def api_system_selftest():
+    """Модуль самотестирования системы"""
+    results = {
+        'database': {'status': 'pending', 'message': ''},
+        'gemini_api': {'status': 'pending', 'message': ''},
+        'docker': {'status': 'pending', 'message': ''},
+        'git': {'status': 'pending', 'message': ''},
+        'file_system': {'status': 'pending', 'message': ''}
+    }
+    
+    # Тест базы данных
+    try:
+        test_user_id = g.current_user['id']
+        test_projects = Project.get_by_user(test_user_id)
+        test_msg_count = len(ChatMessage.get_conversation(test_user_id, None, limit=1))
+        results['database'] = {'status': 'ok', 'message': f'БД работает. Проектов: {len(test_projects)}'}
+    except Exception as e:
+        results['database'] = {'status': 'error', 'message': str(e)}
+    
+    # Тест Gemini API
+    try:
+        if gemini_client and gemini_client.is_available():
+            results['gemini_api'] = {'status': 'ok', 'message': 'Gemini API доступен'}
+        else:
+            results['gemini_api'] = {'status': 'warning', 'message': 'Gemini API не настроен или недоступен'}
+    except Exception as e:
+        results['gemini_api'] = {'status': 'error', 'message': str(e)}
+    
+    # Тест Docker
+    try:
+        if docker_mgr:
+            docker_info = docker_mgr.get_system_info()
+            results['docker'] = {'status': 'ok', 'message': f'Docker: {docker_info.get("containers_running", 0)} контейнеров запущено'}
+        else:
+            results['docker'] = {'status': 'warning', 'message': 'Docker менеджер не инициализирован'}
+    except Exception as e:
+        results['docker'] = {'status': 'error', 'message': str(e)}
+    
+    # Тест Git
+    try:
+        import subprocess
+        git_version = subprocess.check_output(['git', '--version'], text=True).strip()
+        results['git'] = {'status': 'ok', 'message': git_version}
+    except Exception as e:
+        results['git'] = {'status': 'error', 'message': str(e)}
+    
+    # Тест файловой системы
+    try:
+        os.makedirs(Config.DOCKER_PROJECTS_PATH, exist_ok=True)
+        test_file = os.path.join(Config.DOCKER_PROJECTS_PATH, '.selftest')
+        with open(test_file, 'w') as f:
+            f.write('test')
+        os.remove(test_file)
+        results['file_system'] = {'status': 'ok', 'message': f'Запись в {Config.DOCKER_PROJECTS_PATH} доступна'}
+    except Exception as e:
+        results['file_system'] = {'status': 'error', 'message': str(e)}
+    
+    overall_status = 'ok'
+    for component, result in results.items():
+        if result['status'] == 'error':
+            overall_status = 'error'
+            break
+        elif result['status'] == 'warning' and overall_status == 'ok':
+            overall_status = 'warning'
+    
+    return jsonify({
+        'status': overall_status,
+        'components': results
+    })
+
+
 if __name__ == '__main__':
     # Валидация конфигурации
     try:

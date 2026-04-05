@@ -127,30 +127,57 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         
+        is_select = query.strip().upper().startswith('SELECT')
+        
         if params:
-            if many:
+            if many and not is_select:
                 cursor.executemany(query, params)
             else:
                 cursor.execute(query, params)
         else:
             cursor.execute(query)
         
-        conn.commit()
+        if not is_select:
+            conn.commit()
         
         if fetch:
-            if many:
+            if many and not is_select:
                 return cursor.fetchall()
-            result = cursor.fetchone()
-            return dict(result) if result else None
+            # Для SELECT всегда используем fetchall, для DML - fetchone
+            if is_select:
+                result = cursor.fetchall()
+                return [dict(row) for row in result]
+            else:
+                result = cursor.fetchone()
+                return dict(result) if result else None
         return None
     
     def fetchall(self, query, params=None):
         """Получение всех результатов"""
-        return self.execute(query, params, fetch=True, many=True) or []
+        # Для SELECT запросов используем обычный execute без many
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+        
+        result = cursor.fetchall()
+        return [dict(row) for row in result] if result else []
     
     def fetchone(self, query, params=None):
         """Получение одного результата"""
-        return self.execute(query, params, fetch=True)
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+        
+        result = cursor.fetchone()
+        return dict(result) if result else None
 
 
 # Глобальный экземпляр БД
