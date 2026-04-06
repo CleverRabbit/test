@@ -322,12 +322,19 @@ class Project:
     @staticmethod
     def create(name, user_id, description=None):
         """Создание проекта"""
-        db.execute('''
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
             INSERT INTO projects (name, description, user_id, status)
             VALUES (?, ?, ?, 'created')
         ''', (name, description, user_id))
         
-        return Project.get_by_id(db.get_connection().cursor().lastrowid)
+        # Получаем последний вставленный ID до коммита
+        last_id = cursor.lastrowid
+        conn.commit()
+        
+        return Project.get_by_id(last_id)
     
     @staticmethod
     def get_by_id(project_id):
@@ -375,12 +382,18 @@ class ChatMessage:
     @staticmethod
     def create(user_id, role, content, project_id=None, tokens_used=0):
         """Создание сообщения"""
-        db.execute('''
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
             INSERT INTO chat_messages (user_id, project_id, role, content, tokens_used)
             VALUES (?, ?, ?, ?, ?)
         ''', (user_id, project_id, role, content, tokens_used))
         
-        return db.get_connection().cursor().lastrowid
+        last_id = cursor.lastrowid
+        conn.commit()
+        
+        return last_id
     
     @staticmethod
     def get_conversation(user_id, project_id=None, limit=20):

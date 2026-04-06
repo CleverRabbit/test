@@ -519,13 +519,98 @@ def api_system_info():
             'max_containers': Config.MAX_CONCURRENT_CONTAINERS,
             'memory_limit': Config.DEFAULT_CONTAINER_MEMORY_LIMIT,
             'cpu_limit': Config.DEFAULT_CONTAINER_CPU_LIMIT
-        }
+        },
+        'gemini_configured': gemini_client.is_available() if gemini_client else False
     }
     
     if g.current_user['role'] == 'admin':
         info['system'] = docker_mgr.get_system_info()
     
     return jsonify(info)
+
+
+@app.route('/api/settings/gemini', methods=['GET'])
+@login_required
+def api_get_gemini_settings():
+    """Получение настроек Gemini (без показа полного ключа)"""
+    # Показываем только последние 4 символа ключа если он установлен
+    key_preview = ""
+    if gemini_client and gemini_client.api_key:
+        key = gemini_client.api_key
+        if len(key) > 4:
+            key_preview = "****" + key[-4:]
+        else:
+            key_preview = "****"
+    
+    return jsonify({
+        'configured': gemini_client.is_available() if gemini_client else False,
+        'key_preview': key_preview
+    })
+
+
+@app.route('/api/settings/gemini', methods=['POST'])
+@login_required
+@admin_required
+def api_update_gemini_key():
+    """Обновление Gemini API ключа"""
+    global gemini_client
+    
+    data = request.get_json()
+    new_key = data.get('api_key', '').strip()
+    
+    if not new_key:
+        return jsonify({'error': 'Ключ не может быть пустым'}), 400
+    
+    try:
+        # Обновляем ключ в клиенте
+        gemini_client.api_key = new_key
+        
+        # Также обновляем в конфиге для новых экземпляров
+        Config.GEMINI_API_KEY = new_key
+        
+        AuditLog.log('settings_change', user_id=g.current_user['id'], 
+                    details='Gemini API key updated')
+        
+        return jsonify({
+            'success': True,
+            'message': 'Ключ обновлен',
+            'key_preview': '****' + new_key[-4:] if len(new_key) > 4 else '****'
+        })
+    except Exception as e:
+        logger.error(f'Ошибка обновления ключа: {e}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/settings/gemini/test', methods=['POST'])
+@login_required
+def api_test_gemini_connection():
+    """Проверка связи с Gemini API"""
+    if not gemini_client:
+        return jsonify({'success': False, 'error': 'Клиент не инициализирован'}), 500
+    
+    if not gemini_client.api_key:
+        return jsonify({'success': False, 'error': 'API ключ не установлен'}), 400
+    
+    try:
+        # Простой тестовый запрос
+        result = gemini_client.chat("Ответь одним словом: работает ли API?")
+        
+        if result.get('success'):
+            AuditLog.log('gemini_test', user_id=g.current_user['id'], 
+                        details='Gemini API connection test successful')
+            return jsonify({
+                'success': True,
+                'message': 'Связь с Gemini API установлена',
+                'response': result.get('response', '')[:100]
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Неизвестная ошибка')
+            }), 500
+    except Exception as e:
+        logger.error(f'Ошибка теста Gemini API: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ==================== API Файлов ====================

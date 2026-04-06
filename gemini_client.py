@@ -247,6 +247,18 @@ class GeminiClient:
                 'error': str(e)
             }
     
+    def is_available(self):
+        """Проверка доступности API (наличие ключа)"""
+        if not self.api_key:
+            return False
+        if self.api_key == 'your_gemini_api_key_here':
+            return False
+        if self.api_key == 'test_key_placeholder':
+            return False
+        if len(self.api_key) < 10:
+            return False
+        return True
+    
     def close(self):
         """Закрытие сессии"""
         self.session.close()

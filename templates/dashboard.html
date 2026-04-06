@@ -87,6 +87,23 @@
                         </div>
                     </div>
 
+                    <div class="settings-card admin-only" style="display: none;">
+                        <h3>Gemini API Настройки</h3>
+                        <div id="gemini-settings">
+                            <p><strong>Статус:</strong> <span id="gemini-status">Загрузка...</span></p>
+                            <p><strong>Ключ:</strong> <span id="gemini-key-preview">Не настроен</span></p>
+                            <div class="form-group" style="margin-top: 15px;">
+                                <label for="gemini-api-key-input">Новый API ключ</label>
+                                <input type="password" id="gemini-api-key-input" placeholder="Введите ваш Gemini API ключ">
+                            </div>
+                            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <button onclick="saveGeminiKey()" class="btn btn-primary">💾 Сохранить ключ</button>
+                                <button onclick="testGeminiConnection()" class="btn btn-success">🔌 Проверить связь</button>
+                            </div>
+                            <p id="gemini-test-result" style="margin-top: 10px;"></p>
+                        </div>
+                    </div>
+
                     <div class="settings-card">
                         <h3>Диагностика системы</h3>
                         <p style="margin-bottom: 10px; color: #666;">Проверьте работоспособность всех компонентов системы</p>
@@ -403,6 +420,84 @@
             await loadSystemInfo();
             if (currentUser?.role === 'admin') {
                 await loadContainers();
+                await loadGeminiSettings();
+            }
+        }
+
+        async function loadGeminiSettings() {
+            try {
+                const response = await fetch('/api/settings/gemini');
+                const data = await response.json();
+                
+                const statusEl = document.getElementById('gemini-status');
+                const previewEl = document.getElementById('gemini-key-preview');
+                
+                if (data.configured) {
+                    statusEl.innerHTML = '<span style="color: green;">✅ Настроен</span>';
+                    previewEl.textContent = data.key_preview || '****';
+                } else {
+                    statusEl.innerHTML = '<span style="color: orange;">⚠️ Не настроен</span>';
+                    previewEl.textContent = 'Ключ не установлен';
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки настроек Gemini:', error);
+                document.getElementById('gemini-status').innerHTML = '<span style="color: red;">❌ Ошибка</span>';
+            }
+        }
+
+        async function saveGeminiKey() {
+            const keyInput = document.getElementById('gemini-api-key-input');
+            const newKey = keyInput.value.trim();
+            const resultEl = document.getElementById('gemini-test-result');
+            
+            if (!newKey) {
+                resultEl.innerHTML = '<span style="color: red;">Введите ключ</span>';
+                return;
+            }
+            
+            resultEl.innerHTML = '<span style="color: blue;">Сохранение...</span>';
+            
+            try {
+                const response = await fetch('/api/settings/gemini', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({api_key: newKey})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    resultEl.innerHTML = `<span style="color: green;">✅ ${data.message} (${data.key_preview})</span>`;
+                    keyInput.value = '';
+                    await loadGeminiSettings();
+                } else {
+                    resultEl.innerHTML = `<span style="color: red;">❌ ${data.error || 'Ошибка сохранения'}</span>`;
+                }
+            } catch (error) {
+                resultEl.innerHTML = '<span style="color: red;">❌ Ошибка подключения</span>';
+            }
+        }
+
+        async function testGeminiConnection() {
+            const resultEl = document.getElementById('gemini-test-result');
+            
+            resultEl.innerHTML = '<span style="color: blue;">🔌 Проверка связи...</span>';
+            
+            try {
+                const response = await fetch('/api/settings/gemini/test', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    resultEl.innerHTML = `<span style="color: green;">✅ ${data.message}<br>Ответ: ${data.response || ''}</span>`;
+                } else {
+                    resultEl.innerHTML = `<span style="color: red;">❌ ${data.error || 'Ошибка проверки'}</span>`;
+                }
+            } catch (error) {
+                resultEl.innerHTML = '<span style="color: red;">❌ Ошибка подключения к серверу</span>';
             }
         }
 
@@ -413,6 +508,7 @@
                 
                 document.getElementById('system-info').innerHTML = `
                     <p><strong>Docker:</strong> ${data.docker_available ? '✅ Доступен' : '❌ Недоступен'}</p>
+                    <p><strong>Gemini API:</strong> ${data.gemini_configured ? '✅ Настроен' : '⚠️ Не настроен'}</p>
                     <p><strong>Занято портов:</strong> ${data.used_ports?.length || 0}</p>
                     <p><strong>Лимит проектов:</strong> ${data.config.max_projects}</p>
                     <p><strong>Лимит контейнеров:</strong> ${data.config.max_containers}</p>
