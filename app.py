@@ -2,16 +2,21 @@
 AI Developer - Основное приложение Flask
 Легковесное веб-приложение для генерации кода через Gemini API
 с управлением проектами через Docker и Git
+
+Оптимизировано для работы с ограниченными ресурсами (2GB RAM, 1vCPU)
 """
 
 import os
 import logging
 from flask import Flask, request, jsonify, render_template, send_from_directory, g, make_response
-from config import get_config, Config
-from models import db, User, Project, ChatMessage, AuditLog, login_required, admin_required
-from gemini_client import get_gemini_client
-from docker_manager import get_docker_manager
-from project_manager import get_project_manager
+
+from config import Config
+from services.database import db, login_required, admin_required
+from services.models import User, Project, ChatMessage, AuditLog
+from services.gemini_client import get_gemini_client
+from services.docker_manager import get_docker_manager
+from services.project_manager import get_project_manager
+from routes.auth_routes import auth_bp
 
 # Настройка логирования
 logging.basicConfig(
@@ -30,7 +35,10 @@ app = Flask(__name__,
             static_folder='static')
 app.config.from_object(Config)
 
-# Инициализация менеджеров
+# Регистрация blueprint маршрутов
+app.register_blueprint(auth_bp)
+
+# Инициализация менеджеров (ленивая загрузка)
 gemini_client = None
 docker_mgr = None
 project_mgr = None
@@ -83,131 +91,11 @@ def dashboard():
     return render_template('dashboard.html')
 
 
-@app.route('/project/<int:project_id>')
-@login_required
-def project_page(project_id):
-    """Страница проекта"""
-    return render_template('project.html', project_id=project_id)
-
-
 @app.route('/settings')
 @login_required
 def settings_page():
     """Страница настроек"""
     return render_template('settings.html')
-
-
-# ==================== API Авторизации ====================
-
-@app.route('/api/register', methods=['POST'])
-def api_register():
-    """Регистрация нового пользователя"""
-    data = request.get_json()
-    
-    username = data.get('username', '').strip()
-    password = data.get('password', '')
-    email = data.get('email', '').strip()
-    
-    if not username or not password:
-        return jsonify({'error': 'Имя пользователя и пароль обязательны'}), 400
-    
-    if len(username) < 3:
-        return jsonify({'error': 'Имя пользователя должно быть не менее 3 символов'}), 400
-    
-    if len(password) < 6:
-        return jsonify({'error': 'Пароль должен быть не менее 6 символов'}), 400
-    
-    # Проверка существования
-    existing = User.get_by_username(username)
-    if existing:
-        return jsonify({'error': 'Пользователь уже существует'}), 409
-    
-    # Определение первого пользователя как админа
-    all_users = db.fetchall('SELECT id FROM users')
-    role = 'admin' if not all_users else 'user'
-    
-    try:
-        user = User.create(username, password, email, role)
-        AuditLog.log('register', user_id=user['id'], details=f'Регистрация: {username}')
-        
-        return jsonify({
-            'message': 'Пользователь зарегистрирован',
-            'user': {
-                'id': user['id'],
-                'username': user['username'],
-                'role': user['role']
-            }
-        }), 201
-    except Exception as e:
-        logger.error(f'Ошибка регистрации: {e}')
-        return jsonify({'error': 'Ошибка при регистрации'}), 500
-
-
-@app.route('/api/login', methods=['POST'])
-def api_login():
-    """Вход в систему"""
-    data = request.get_json()
-    username = data.get('username', '').strip()
-    password = data.get('password', '')
-    
-    if not username or not password:
-        return jsonify({'error': 'Введите имя пользователя и пароль'}), 400
-    
-    ip_address = request.remote_addr
-    user = User.verify_login(username, password)
-    
-    if not user:
-        AuditLog.log('login_failed', details=f'Неудачная попытка входа: {username}', ip_address=ip_address)
-        return jsonify({'error': 'Неверное имя пользователя или пароль'}), 401
-    
-    # Создание сессии
-    session_token = User.create_session(user['id'], ip_address)
-    
-    AuditLog.log('login', user_id=user['id'], ip_address=ip_address)
-    
-    response = make_response(jsonify({
-        'message': 'Вход выполнен',
-        'user': {
-            'id': user['id'],
-            'username': user['username'],
-            'role': user['role'],
-            'api_key': user['api_key']
-        }
-    }))
-    response.set_cookie('session_token', session_token, httponly=True, max_age=7200)
-    
-    return response
-
-
-@app.route('/api/logout', methods=['POST'])
-@login_required
-def api_logout():
-    """Выход из системы"""
-    session_token = request.cookies.get('session_token')
-    if session_token:
-        User.delete_session(session_token)
-    
-    AuditLog.log('logout', user_id=g.current_user['id'])
-    
-    response = make_response(jsonify({'message': 'Выход выполнен'}))
-    response.delete_cookie('session_token')
-    
-    return response
-
-
-@app.route('/api/me', methods=['GET'])
-@login_required
-def api_me():
-    """Получение информации о текущем пользователе"""
-    return jsonify({
-        'user': {
-            'id': g.current_user['id'],
-            'username': g.current_user['username'],
-            'email': g.current_user['email'],
-            'role': g.current_user['role'],
-            'api_key': g.current_user['api_key']
-        }
-    })
 
 
 # ==================== API Проектов ====================
@@ -420,6 +308,32 @@ def api_stop_project(project_id):
         return jsonify({'error': result['error']}), 500
 
 
+@app.route('/api/projects/<int:project_id>/prompt', methods=['PUT'])
+@login_required
+def api_update_project_prompt(project_id):
+    """Обновление системного промпта проекта"""
+    project = Project.get_by_id(project_id)
+    
+    if not project or project['user_id'] != g.current_user['id']:
+        return jsonify({'error': 'Проект не найден'}), 404
+    
+    data = request.get_json()
+    system_prompt = data.get('system_prompt', '')
+    
+    if not system_prompt:
+        return jsonify({'error': 'Системный промпт не может быть пустым'}), 400
+    
+    try:
+        Project.update_system_prompt(project_id, system_prompt)
+        AuditLog.log('project_prompt_update', user_id=g.current_user['id'],
+                    resource_type='project', resource_id=project_id)
+        
+        return jsonify({'message': 'Системный промпт обновлен'})
+    except Exception as e:
+        logger.error(f'Ошибка обновления промпта: {e}')
+        return jsonify({'error': 'Ошибка при обновлении промпта'}), 500
+
+
 # ==================== API Чата ====================
 
 @app.route('/api/chat', methods=['POST'])
@@ -433,6 +347,13 @@ def api_chat():
     if not message:
         return jsonify({'error': 'Сообщение не может быть пустым'}), 400
     
+    # Получение проекта для системного промпта
+    system_prompt = None
+    if project_id:
+        project = Project.get_by_id(project_id)
+        if project and project.get('system_prompt'):
+            system_prompt = project['system_prompt']
+    
     # Сохранение сообщения пользователя
     ChatMessage.create(g.current_user['id'], 'user', message, project_id)
     
@@ -441,7 +362,7 @@ def api_chat():
     context.reverse()
     
     # Генерация ответа
-    response = gemini_client.generate_code(message, context)
+    response = gemini_client.generate_code(message, context, system_prompt=system_prompt)
     
     if response['success']:
         # Сохранение ответа AI
@@ -505,253 +426,206 @@ def api_cleanup_containers():
     })
 
 
+# ==================== API Системы ====================
+
 @app.route('/api/system/info', methods=['GET'])
 @login_required
 def api_system_info():
     """Получение системной информации"""
-    docker_available = docker_mgr.check_docker_available()
+    from services.gemini_client import get_gemini_client
     
-    info = {
-        'docker_available': docker_available,
-        'used_ports': docker_mgr.get_used_ports(),
-        'config': {
-            'max_projects': Config.MAX_PROJECTS_PER_USER,
-            'max_containers': Config.MAX_CONCURRENT_CONTAINERS,
-            'memory_limit': Config.DEFAULT_CONTAINER_MEMORY_LIMIT,
-            'cpu_limit': Config.DEFAULT_CONTAINER_CPU_LIMIT
-        },
-        'gemini_configured': gemini_client.is_available() if gemini_client else False
-    }
+    gemini_available = gemini_client.is_available() if gemini_client else False
     
-    if g.current_user['role'] == 'admin':
-        info['system'] = docker_mgr.get_system_info()
+    return jsonify({
+        'version': '1.0.0',
+        'python_version': os.popen('python3 --version').read().strip(),
+        'docker': docker_mgr.get_system_info() if docker_mgr else {},
+        'gemini_configured': gemini_available,
+        'disk_usage': project_mgr.get_disk_usage() if project_mgr else {}
+    })
+
+
+@app.route('/api/system/selftest', methods=['GET'])
+@admin_required
+def api_selftest():
+    """Самотестирование системы"""
+    results = {}
     
-    return jsonify(info)
+    # Проверка БД
+    try:
+        projects_count = len(Project.get_by_user(g.current_user['id']))
+        results['database'] = {
+            'status': 'ok',
+            'message': f'БД работает. Проектов: {projects_count}'
+        }
+    except Exception as e:
+        results['database'] = {'status': 'error', 'message': str(e)}
+    
+    # Проверка Docker
+    try:
+        containers = docker_mgr.list_containers()
+        running = sum(1 for c in containers if 'Up' in c.get('status', ''))
+        results['docker'] = {
+            'status': 'ok',
+            'message': f'Docker: {running} контейнеров запущено'
+        }
+    except Exception as e:
+        results['docker'] = {'status': 'error', 'message': str(e)}
+    
+    # Проверка файловой системы
+    try:
+        test_file = os.path.join(Config.DOCKER_PROJECTS_PATH, '.write_test')
+        with open(test_file, 'w') as f:
+            f.write('test')
+        os.remove(test_file)
+        results['file_system'] = {
+            'status': 'ok',
+            'message': f'Запись в {Config.DOCKER_PROJECTS_PATH} доступна'
+        }
+    except Exception as e:
+        results['file_system'] = {'status': 'error', 'message': str(e)}
+    
+    # Проверка Gemini API
+    try:
+        if gemini_client and gemini_client.is_available():
+            results['gemini_api'] = {
+                'status': 'ok',
+                'message': 'Gemini API настроен и доступен'
+            }
+        else:
+            results['gemini_api'] = {
+                'status': 'warning',
+                'message': 'Gemini API не настроен или недоступен'
+            }
+    except Exception as e:
+        results['gemini_api'] = {'status': 'error', 'message': str(e)}
+    
+    # Проверка Git
+    try:
+        import subprocess
+        git_version = subprocess.check_output(['git', '--version']).decode().strip()
+        results['git'] = {
+            'status': 'ok',
+            'message': git_version
+        }
+    except Exception as e:
+        results['git'] = {'status': 'error', 'message': str(e)}
+    
+    return jsonify({'tests': results})
 
 
 @app.route('/api/settings/gemini', methods=['GET'])
-@login_required
+@admin_required
 def api_get_gemini_settings():
-    """Получение настроек Gemini (без показа полного ключа)"""
-    # Показываем только последние 4 символа ключа если он установлен
-    key_preview = ""
-    if gemini_client and gemini_client.api_key:
-        key = gemini_client.api_key
-        if len(key) > 4:
-            key_preview = "****" + key[-4:]
-        else:
-            key_preview = "****"
+    """Получение настроек Gemini API"""
+    # Возвращаем только маску ключа
+    key = Config.GEMINI_API_KEY
+    if key and len(key) > 4:
+        masked_key = f"****{key[-4:]}"
+    else:
+        masked_key = "Не настроен"
     
     return jsonify({
-        'configured': gemini_client.is_available() if gemini_client else False,
-        'key_preview': key_preview
+        'api_key_masked': masked_key,
+        'is_configured': bool(key and len(key) > 10),
+        'model': Config.GEMINI_MODEL
     })
 
 
 @app.route('/api/settings/gemini', methods=['POST'])
-@login_required
 @admin_required
-def api_update_gemini_key():
-    """Обновление Gemini API ключа"""
-    global gemini_client
-    
+def api_update_gemini_settings():
+    """Обновление настроек Gemini API"""
     data = request.get_json()
     new_key = data.get('api_key', '').strip()
     
     if not new_key:
-        return jsonify({'error': 'Ключ не может быть пустым'}), 400
+        return jsonify({'error': 'API ключ не может быть пустым'}), 400
     
-    try:
-        # Обновляем ключ в клиенте
-        gemini_client.api_key = new_key
-        
-        # Также обновляем в конфиге для новых экземпляров
-        Config.GEMINI_API_KEY = new_key
-        
-        AuditLog.log('settings_change', user_id=g.current_user['id'], 
-                    details='Gemini API key updated')
-        
-        return jsonify({
-            'success': True,
-            'message': 'Ключ обновлен',
-            'key_preview': '****' + new_key[-4:] if len(new_key) > 4 else '****'
-        })
-    except Exception as e:
-        logger.error(f'Ошибка обновления ключа: {e}')
-        return jsonify({'error': str(e)}), 500
+    # Обновление в конфиге (для текущего процесса)
+    Config.GEMINI_API_KEY = new_key
+    
+    # Пересоздание клиента с новым ключом
+    global gemini_client
+    gemini_client = get_gemini_client()
+    
+    AuditLog.log('settings_update', user_id=g.current_user['id'], 
+                details='Обновлен Gemini API ключ')
+    
+    return jsonify({'message': 'Настройки обновлены'})
 
 
 @app.route('/api/settings/gemini/test', methods=['POST'])
-@login_required
+@admin_required
 def api_test_gemini_connection():
-    """Проверка связи с Gemini API"""
-    if not gemini_client:
-        return jsonify({'success': False, 'error': 'Клиент не инициализирован'}), 500
-    
-    if not gemini_client.api_key:
-        return jsonify({'success': False, 'error': 'API ключ не установлен'}), 400
-    
-    try:
-        # Простой тестовый запрос
-        result = gemini_client.chat("Ответь одним словом: работает ли API?")
-        
-        if result.get('success'):
-            AuditLog.log('gemini_test', user_id=g.current_user['id'], 
-                        details='Gemini API connection test successful')
-            return jsonify({
-                'success': True,
-                'message': 'Связь с Gemini API установлена',
-                'response': result.get('response', '')[:100]
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'error': result.get('error', 'Неизвестная ошибка')
-            }), 500
-    except Exception as e:
-        logger.error(f'Ошибка теста Gemini API: {e}')
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-# ==================== API Файлов ====================
-
-@app.route('/api/projects/<int:project_id>/files/<path:filepath>', methods=['GET'])
-@login_required
-def api_get_file(project_id, filepath):
-    """Получение содержимого файла"""
-    project = Project.get_by_id(project_id)
-    
-    if not project or project['user_id'] != g.current_user['id']:
-        return jsonify({'error': 'Проект не найден'}), 404
-    
-    result = project_mgr.get_file_content(project_id, filepath)
-    
-    if result['success']:
-        return jsonify({'content': result['content']})
-    else:
-        return jsonify({'error': result['error']}), 404
-
-
-@app.route('/api/projects/<int:project_id>/files/<path:filepath>', methods=['PUT'])
-@login_required
-def api_save_file(project_id, filepath):
-    """Сохранение файла"""
-    project = Project.get_by_id(project_id)
-    
-    if not project or project['user_id'] != g.current_user['id']:
-        return jsonify({'error': 'Проект не найден'}), 404
-    
+    """Проверка соединения с Gemini API"""
     data = request.get_json()
-    content = data.get('content', '')
+    api_key = data.get('api_key', Config.GEMINI_API_KEY)
     
-    result = project_mgr.save_file(project_id, filepath, content)
+    if not api_key:
+        return jsonify({'error': 'API ключ не указан'}), 400
+    
+    # Создание временного клиента для теста
+    from services.gemini_client import GeminiClient
+    test_client = GeminiClient(api_key)
+    
+    result = test_client.test_connection()
     
     if result['success']:
-        project_mgr.commit_changes(project_id, f"Update {filepath}")
-        return jsonify({'message': 'Файл сохранен'})
+        return jsonify({'message': 'Соединение успешно', 'details': result})
     else:
-        return jsonify({'error': result['error']}), 500
+        return jsonify({'error': result.get('error', 'Ошибка соединения')}), 500
+
+
+@app.route('/api/settings/prompt', methods=['GET'])
+@admin_required
+def api_get_system_prompt():
+    """Получение системного промпта по умолчанию"""
+    return jsonify({
+        'system_prompt': Config.DEFAULT_SYSTEM_PROMPT
+    })
+
+
+@app.route('/api/settings/prompt', methods=['PUT'])
+@admin_required
+def api_update_system_prompt():
+    """Обновление системного промпта по умолчанию"""
+    data = request.get_json()
+    new_prompt = data.get('system_prompt', '')
+    
+    if not new_prompt:
+        return jsonify({'error': 'Промпт не может быть пустым'}), 400
+    
+    # Обновление в конфиге
+    Config.DEFAULT_SYSTEM_PROMPT = new_prompt
+    
+    AuditLog.log('settings_update', user_id=g.current_user['id'],
+                details='Обновлен системный промпт по умолчанию')
+    
+    return jsonify({'message': 'Системный промпт обновлен'})
+
+
+# ==================== Обработчики ошибок ====================
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Не найдено'}), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error(f'Внутренняя ошибка: {error}')
+    return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 # ==================== Запуск приложения ====================
-
-@app.route('/api/system/selftest', methods=['GET'])
-@login_required
-def api_system_selftest():
-    """Модуль самотестирования системы"""
-    results = {
-        'database': {'status': 'pending', 'message': ''},
-        'gemini_api': {'status': 'pending', 'message': ''},
-        'docker': {'status': 'pending', 'message': ''},
-        'git': {'status': 'pending', 'message': ''},
-        'file_system': {'status': 'pending', 'message': ''}
-    }
-    
-    # Тест базы данных
-    try:
-        test_user_id = g.current_user['id']
-        test_projects = Project.get_by_user(test_user_id)
-        test_msg_count = len(ChatMessage.get_conversation(test_user_id, None, limit=1))
-        results['database'] = {'status': 'ok', 'message': f'БД работает. Проектов: {len(test_projects)}'}
-    except Exception as e:
-        results['database'] = {'status': 'error', 'message': str(e)}
-    
-    # Тест Gemini API
-    try:
-        if gemini_client and gemini_client.is_available():
-            results['gemini_api'] = {'status': 'ok', 'message': 'Gemini API доступен'}
-        else:
-            results['gemini_api'] = {'status': 'warning', 'message': 'Gemini API не настроен или недоступен'}
-    except Exception as e:
-        results['gemini_api'] = {'status': 'error', 'message': str(e)}
-    
-    # Тест Docker
-    try:
-        if docker_mgr:
-            docker_info = docker_mgr.get_system_info()
-            results['docker'] = {'status': 'ok', 'message': f'Docker: {docker_info.get("containers_running", 0)} контейнеров запущено'}
-        else:
-            results['docker'] = {'status': 'warning', 'message': 'Docker менеджер не инициализирован'}
-    except Exception as e:
-        results['docker'] = {'status': 'error', 'message': str(e)}
-    
-    # Тест Git
-    try:
-        import subprocess
-        git_version = subprocess.check_output(['git', '--version'], text=True).strip()
-        results['git'] = {'status': 'ok', 'message': git_version}
-    except Exception as e:
-        results['git'] = {'status': 'error', 'message': str(e)}
-    
-    # Тест файловой системы
-    try:
-        os.makedirs(Config.DOCKER_PROJECTS_PATH, exist_ok=True)
-        test_file = os.path.join(Config.DOCKER_PROJECTS_PATH, '.selftest')
-        with open(test_file, 'w') as f:
-            f.write('test')
-        os.remove(test_file)
-        results['file_system'] = {'status': 'ok', 'message': f'Запись в {Config.DOCKER_PROJECTS_PATH} доступна'}
-    except Exception as e:
-        results['file_system'] = {'status': 'error', 'message': str(e)}
-    
-    overall_status = 'ok'
-    for component, result in results.items():
-        if result['status'] == 'error':
-            overall_status = 'error'
-            break
-        elif result['status'] == 'warning' and overall_status == 'ok':
-            overall_status = 'warning'
-    
-    return jsonify({
-        'status': overall_status,
-        'components': results
-    })
-
 
 if __name__ == '__main__':
     # Валидация конфигурации
     try:
         Config.validate()
     except ValueError as e:
-        logger.error(f'Ошибка конфигурации: {e}')
-        print(f"ERROR: {e}")
-        print("Please set GEMINI_API_KEY in .env file")
-        exit(1)
+        logger.warning(f'Предупреждение конфигурации: {e}')
     
-    # Создание директорий
-    os.makedirs(Config.DOCKER_PROJECTS_PATH, exist_ok=True)
-    os.makedirs('templates', exist_ok=True)
-    os.makedirs('static', exist_ok=True)
-    
-    logger.info(f"Запуск AI Developer на {Config.HOST}:{Config.PORT}")
-    print(f"\n{'='*50}")
-    print(f"AI Developer запущен!")
-    print(f"URL: http://{Config.HOST}:{Config.PORT}")
-    print(f"{'='*50}\n")
-    
-    app.run(
-        host=Config.HOST,
-        port=Config.PORT,
-        debug=False,
-        threaded=True
-    )
+    logger.info(f"AI Developer запускается на {Config.HOST}:{Config.PORT}")
+    app.run(host=Config.HOST, port=Config.PORT, debug=Config.DEBUG)

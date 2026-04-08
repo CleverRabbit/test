@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 # Загрузка переменных окружения
 load_dotenv()
 
+
 class Config:
     """Базовая конфигурация"""
     
@@ -16,13 +17,14 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
     HOST = os.getenv('HOST', '0.0.0.0')
     PORT = int(os.getenv('PORT', 5000))
+    DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     
     # База данных (SQLite для легковесности)
-    DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///ai_developer.db')
+    DB_PATH = os.getenv('DB_PATH', 'ai_developer.db')
     
     # Gemini API
     GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
-    GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+    GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
     
     # Docker настройки
     DOCKER_PROJECTS_PATH = os.getenv('DOCKER_PROJECTS_PATH', '/workspace/projects')
@@ -40,10 +42,21 @@ class Config:
     
     # Логи
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
-    LOG_FILE = os.getenv('LOG_FILE', '/workspace/ai_developer.log')
+    LOG_FILE = os.getenv('LOG_FILE', 'ai_developer.log')
     
     # Оптимизация памяти
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB макс размер запроса
+    
+    # Системный промпт по умолчанию
+    DEFAULT_SYSTEM_PROMPT = """Ты AI Developer - опытный программист, который помогает создавать код.
+Твои задачи:
+1. Генерировать чистый, эффективный и безопасный код
+2. Объяснять свои решения кратко и понятно
+3. Предлагать лучшие практики для языка программирования
+4. Учитывать ограничения ресурсов (2GB RAM, 1vCPU)
+5. Использовать легковесные решения и оптимизированный код
+
+Отвечай на русском языке, если пользователь не указал иное."""
     
     @classmethod
     def validate(cls):
@@ -57,25 +70,6 @@ class Config:
         return True
 
 
-class DevelopmentConfig(Config):
-    """Конфигурация для разработки"""
-    DEBUG = True
-    LOG_LEVEL = 'DEBUG'
-
-
-class ProductionConfig(Config):
-    """Конфигурация для продакшена"""
-    DEBUG = False
-    
-
-config_map = {
-    'development': DevelopmentConfig,
-    'production': ProductionConfig,
-    'default': ProductionConfig
-}
-
-
 def get_config():
-    """Получение конфигурации в зависимости от окружения"""
-    env = os.getenv('FLASK_ENV', 'production')
-    return config_map.get(env, config_map['default'])
+    """Получение конфигурации"""
+    return Config

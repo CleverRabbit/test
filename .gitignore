@@ -1,29 +1,26 @@
 ```
-# Database
-*.db
-
-# Dependencies
-.venv/
-venv/
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Logs and temp files
-*.log
-*.tmp
-
-# Environment
+.venv/
+venv/
 .env
 .env.local
 *.env.*
-
-# Editors
 .vscode/
 .idea/
-
-# OS
+*.log
+*.tmp
 .DS_Store
 Thumbs.db
+dist/
+build/
+target/
+node_modules/
+.mypy_cache/
+.pytest_cache/
+.coverage
+coverage/
+htmlcov/
 ```

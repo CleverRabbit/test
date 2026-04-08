@@ -17,7 +17,8 @@ class GeminiClient:
     
     def __init__(self, api_key=None):
         self.api_key = api_key or Config.GEMINI_API_KEY
-        self.api_url = Config.GEMINI_API_URL
+        self.model = Config.GEMINI_MODEL
+        self.base_url = 'https://generativelanguage.googleapis.com/v1beta/models'
         self.session = requests.Session()
         # Оптимизация: не держать много соединений
         self.session.mount('https://', requests.adapters.HTTPAdapter(
@@ -43,7 +44,7 @@ class GeminiClient:
         while retries <= max_retries:
             try:
                 response = self.session.post(
-                    f"{self.api_url}?key={self.api_key}",
+                    f"{self.base_url}/{self.model}:generateContent?key={self.api_key}",
                     json=payload,
                     headers={"Content-Type": "application/json"},
                     timeout=60
@@ -90,7 +91,7 @@ class GeminiClient:
             'error': 'Не удалось выполнить запрос после нескольких попыток'
         }
     
-    def generate_code(self, prompt, context=None, language='python'):
+    def generate_code(self, prompt, context=None, language='python', system_prompt=None):
         """
         Генерация кода через Gemini API
         
@@ -125,6 +126,9 @@ class GeminiClient:
     "instructions": "инструкции по запуску"
 }}
 """
+        # Использование кастомного системного промпта если предоставлен
+        if system_prompt:
+            system_instruction = system_prompt
         
         messages = []
         
