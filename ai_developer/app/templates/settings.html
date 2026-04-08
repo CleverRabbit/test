@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - AI Developer{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 1.5rem;">Settings</h2>
+
+<div class="card">
+    <h3>Google Gemini API Key</h3>
+    <p style="color: #666; margin-bottom: 1rem;">
+        Your API key is stored securely and never exposed in logs or frontend.
+        {% if has_api_key %}
+            Current key: <code>{{ api_key_display }}</code>
+        {% else %}
+            No API key configured.
+        {% endif %}
+    </p>
+    
+    <form method="POST" action="{{ url_for('dashboard.settings') }}">
+        <input type="hidden" name="action" value="save_api_key">
+        <div class="form-group">
+            <label for="api_key">Gemini API Key</label>
+            <input type="password" id="api_key" name="api_key" placeholder="Enter your API key" autocomplete="off">
+        </div>
+        <button type="submit" class="btn btn-primary">Save API Key</button>
+    </form>
+    
+    <p style="margin-top: 1rem; font-size: 0.9rem;">
+        <a href="https://makersuite.google.com/app/apikey" target="_blank">Get your API key here</a>
+    </p>
+</div>
+
+<div class="card">
+    <h3>System Information</h3>
+    <div id="system-status">
+        <p>Loading system status...</p>
+    </div>
+    <button onclick="pruneResources()" class="btn btn-warning" style="margin-top: 1rem;">Prune Docker Resources</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadSystemStatus() {
+    try {
+        const response = await fetch('/api/system/status');
+        const data = await response.json();
+        
+        const html = `
+            <table style="width: 100%;">
+                <tr><td>Database:</td><td><span class="status-badge status-${data.database.status === 'connected' ? 'running' : 'error'}">${data.database.status}</span></td></tr>
+                <tr><td>Docker:</td><td><span class="status-badge status-${data.docker.available ? 'running' : 'error'}">${data.docker.available ? 'available' : 'unavailable'}</span></td></tr>
+                <tr><td>Projects:</td><td>${data.projects.total}</td></tr>
+            </table>
+        `;
+        document.getElementById('system-status').innerHTML = html;
+    } catch (e) {
+        document.getElementById('system-status').innerHTML = '<p style="color: red;">Error loading status</p>';
+    }
+}
+
+async function pruneResources() {
+    if (!confirm('This will remove unused Docker containers, images, and volumes. Continue?')) return;
+    
+    showToast('Pruning resources...', 'info');
+    try {
+        const response = await fetch('/api/system/prune', { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.error) {
+            showToast('Error: ' + data.error, 'error');
+        } else {
+            showToast(`Pruned: ${data.containers_pruned} containers, ${data.images_pruned} images`, 'success');
+        }
+    } catch (e) {
+        showToast('Error pruning resources', 'error');
+    }
+}
+
+loadSystemStatus();
+</script>
+{% endblock %}

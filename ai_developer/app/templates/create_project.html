@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Create Project - AI Developer{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 2rem auto;">
+    <h2>Create New Project</h2>
+    <form method="POST" action="{{ url_for('dashboard.create_project') }}">
+        <div class="form-group">
+            <label for="name">Project Name (optional if providing idea)</label>
+            <input type="text" id="name" name="name" placeholder="my-awesome-project">
+        </div>
+        <div class="form-group">
+            <label for="idea">Project Idea (AI will analyze and suggest name/tech stack)</label>
+            <textarea id="idea" name="idea" placeholder="Describe your project idea. For example: 'A REST API for a todo list application with user authentication'" style="min-height: 150px;"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="description">Description (optional)</label>
+            <textarea id="description" name="description" placeholder="Brief description of your project"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Create Project with AI</button>
+    </form>
+    <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+        💡 Tip: Provide a detailed idea to let AI suggest the best tech stack and project structure.
+    </p>
+</div>
+{% endblock %}
