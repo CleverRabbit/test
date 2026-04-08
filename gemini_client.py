@@ -5,7 +5,11 @@
 
 import requests
 import json
+import time
+import logging
 from config import Config
+
+logger = logging.getLogger(__name__)
 
 
 class GeminiClient:
@@ -19,8 +23,72 @@ class GeminiClient:
         self.session.mount('https://', requests.adapters.HTTPAdapter(
             pool_connections=1,
             pool_maxsize=2,
-            max_retries=2
+            max_retries=0  # Отключаем встроенные retry, используем свои
         ))
+    
+    def _make_request(self, payload, max_retries=3):
+        """
+        Выполнение запроса к API с обработкой ошибок 429
+        
+        Args:
+            payload: Данные запроса
+            max_retries: Максимальное количество попыток
+        
+        Returns:
+            dict: Ответ API или ошибка
+        """
+        retries = 0
+        base_delay = 5  # Базовая задержка в секундах
+        
+        while retries <= max_retries:
+            try:
+                response = self.session.post(
+                    f"{self.api_url}?key={self.api_key}",
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                    timeout=60
+                )
+                
+                # Обработка ошибки 429 (Too Many Requests)
+                if response.status_code == 429:
+                    retries += 1
+                    if retries > max_retries:
+                        logger.warning(f"Превышено количество попыток после 429 ошибки")
+                        return {
+                            'success': False,
+                            'error': 'Слишком много запросов к API. Повторите позже.',
+                            'error_type': 'rate_limit'
+                        }
+                    
+                    # Экспоненциальная задержка: 5, 10, 20 секунд
+                    delay = base_delay * (2 ** (retries - 1))
+                    logger.warning(f"Получена ошибка 429. Попытка {retries}/{max_retries}. Ожидание {delay}с...")
+                    time.sleep(delay)
+                    continue
+                
+                response.raise_for_status()
+                return response.json()
+                
+            except requests.exceptions.Timeout:
+                return {
+                    'success': False,
+                    'error': 'Превышено время ожидания ответа от API'
+                }
+            except requests.exceptions.RequestException as e:
+                # Не логируем ключ в ошибке
+                error_msg = str(e)
+                if 'key=' in error_msg:
+                    error_msg = error_msg.split('key=')[0] + 'key=[REDACTED]'
+                logger.error(f"Ошибка запроса к Gemini API: {error_msg}")
+                return {
+                    'success': False,
+                    'error': f'Ошибка соединения с API: {str(e)}'
+                }
+        
+        return {
+            'success': False,
+            'error': 'Не удалось выполнить запрос после нескольких попыток'
+        }
     
     def generate_code(self, prompt, context=None, language='python'):
         """
@@ -113,15 +181,13 @@ class GeminiClient:
         }
         
         try:
-            response = self.session.post(
-                f"{self.api_url}?key={self.api_key}",
-                json=payload,
-                headers={"Content-Type": "application/json"},
-                timeout=60
-            )
-            response.raise_for_status()
+            result = self._make_request(payload)
             
-            result = response.json()
+            if not isinstance(result, dict):
+                return {
+                    'success': False,
+                    'error': 'Некорректный формат ответа от API'
+                }
             
             # Парсим ответ
             if 'candidates' in result and len(result['candidates']) > 0:
@@ -164,16 +230,6 @@ class GeminiClient:
                 'raw_response': result
             }
             
-        except requests.exceptions.Timeout:
-            return {
-                'success': False,
-                'error': 'Превышено время ожидания ответа от API'
-            }
-        except requests.exceptions.RequestException as e:
-            return {
-                'success': False,
-                'error': f'Ошибка запроса к API: {str(e)}'
-            }
         except Exception as e:
             return {
                 'success': False,
@@ -218,15 +274,13 @@ class GeminiClient:
         }
         
         try:
-            response = self.session.post(
-                f"{self.api_url}?key={self.api_key}",
-                json=payload,
-                headers={"Content-Type": "application/json"},
-                timeout=60
-            )
-            response.raise_for_status()
+            result = self._make_request(payload)
             
-            result = response.json()
+            if not isinstance(result, dict):
+                return {
+                    'success': False,
+                    'error': 'Некорректный формат ответа от API'
+                }
             
             if 'candidates' in result and len(result['candidates']) > 0:
                 content = result['candidates'][0]['content']['parts'][0]['text']
