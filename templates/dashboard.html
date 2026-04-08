@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Developer - Панель управления</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Боковая панель -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>🤖 AI Developer</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#projects" class="nav-item active" onclick="showSection('projects')">
+                    📁 Проекты
+                </a>
+                <a href="#chat" class="nav-item" onclick="showSection('chat')">
+                    💬 Чат с AI
+                </a>
+                <a href="#settings" class="nav-item" onclick="showSection('settings'); loadSettings();">
+                    ⚙️ Настройки
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button onclick="logout()" class="btn btn-secondary btn-sm">Выйти</button>
+            </div>
+        </aside>
+
+        <!-- Основной контент -->
+        <main class="main-content">
+            <!-- Секция проектов -->
+            <section id="projects-section" class="section active">
+                <div class="section-header">
+                    <h1>Мои проекты</h1>
+                    <button onclick="showCreateProjectModal()" class="btn btn-primary">+ Новый проект</button>
+                </div>
+
+                <div id="projects-list" class="projects-grid">
+                    <!-- Проекты будут загружены здесь -->
+                    <div class="loading">Загрузка проектов...</div>
+                </div>
+            </section>
+
+            <!-- Секция чата -->
+            <section id="chat-section" class="section">
+                <div class="section-header">
+                    <h1>Чат с AI разработчиком</h1>
+                    <select id="chat-project-select" onchange="loadChatHistory()">
+                        <option value="">Общий чат</option>
+                    </select>
+                </div>
+
+                <div class="chat-container">
+                    <div id="chat-messages" class="chat-messages">
+                        <!-- Сообщения чата -->
+                    </div>
+                    <div class="chat-input-area">
+                        <textarea id="chat-input" placeholder="Опишите задачу или попросите сгенерировать код..." rows="3"></textarea>
+                        <button onclick="sendMessage()" class="btn btn-primary" id="send-btn">
+                            Отправить
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Секция настроек -->
+            <section id="settings-section" class="section">
+                <div class="section-header">
+                    <h1>Настройки</h1>
+                </div>
+
+                <div class="settings-container">
+                    <div class="settings-card">
+                        <h3>Информация о пользователе</h3>
+                        <div id="user-info">
+                            <!-- Информация о пользователе -->
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <h3>Системная информация</h3>
+                        <div id="system-info">
+                            <!-- Системная информация -->
+                        </div>
+                    </div>
+
+                    <div class="settings-card admin-only" style="display: none;">
+                        <h3>Gemini API Настройки</h3>
+                        <div id="gemini-settings">
+                            <p><strong>Статус:</strong> <span id="gemini-status">Загрузка...</span></p>
+                            <p><strong>Ключ:</strong> <span id="gemini-key-preview">Не настроен</span></p>
+                            <div class="form-group" style="margin-top: 15px;">
+                                <label for="gemini-api-key-input">Новый API ключ</label>
+                                <input type="password" id="gemini-api-key-input" placeholder="Введите ваш Gemini API ключ">
+                            </div>
+                            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <button onclick="saveGeminiKey()" class="btn btn-primary">💾 Сохранить ключ</button>
+                                <button onclick="testGeminiConnection()" class="btn btn-success">🔌 Проверить связь</button>
+                            </div>
+                            <p id="gemini-test-result" style="margin-top: 10px;"></p>
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <h3>Диагностика системы</h3>
+                        <p style="margin-bottom: 10px; color: #666;">Проверьте работоспособность всех компонентов системы</p>
+                        <button onclick="runSelfTest()" class="btn btn-primary">
+                            🔍 Запустить самотестирование
+                        </button>
+                    </div>
+
+                    <div class="settings-card admin-only" style="display: none;">
+                        <h3>Управление контейнерами</h3>
+                        <div id="containers-list">
+                            <!-- Список контейнеров -->
+                        </div>
+                        <button onclick="cleanupContainers()" class="btn btn-danger mt-3">
+                            🧹 Очистить неиспользуемые ресурсы
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Модальное окно создания проекта -->
+    <div id="create-project-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Новый проект</h2>
+            <form onsubmit="createProject(event)">
+                <div class="form-group">
+                    <label for="project-name">Название проекта</label>
+                    <input type="text" id="project-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="project-description">Описание (необязательно)</label>
+                    <textarea id="project-description" rows="3"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" onclick="closeModal()" class="btn btn-secondary">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Создать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let currentUser = null;
+        let currentProjectId = null;
+
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadUserInfo();
+            await loadProjects();
+            await loadSystemInfo();
+        });
+
+        // Переключение секций
+        function showSection(sectionName) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(`${sectionName}-section`).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Загрузка информации о пользователе
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUser = data.user;
+                    
+                    document.getElementById('user-info').innerHTML = `
+                        <p><strong>Имя:</strong> ${currentUser.username}</p>
+                        <p><strong>Роль:</strong> ${currentUser.role}</p>
+                        <p><strong>API Key:</strong> <code>${currentUser.api_key}</code></p>
+                    `;
+
+                    if (currentUser.role === 'admin') {
+                        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+                    }
+                } else {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки пользователя:', error);
+            }
+        }
+
+        // Загрузка проектов
+        async function loadProjects() {
+            try {
+                const response = await fetch('/api/projects');
+                const data = await response.json();
+                
+                const container = document.getElementById('projects-list');
+                const select = document.getElementById('chat-project-select');
+                
+                if (!data.projects || data.projects.length === 0) {
+                    container.innerHTML = '<p class="empty-state">Нет проектов. Создайте первый!</p>';
+                    return;
+                }
+
+                container.innerHTML = data.projects.map(p => `
+                    <div class="project-card">
+                        <div class="project-header">
+                            <h3>${escapeHtml(p.name)}</h3>
+                            <span class="status-badge status-${p.status}">${p.status}</span>
+                        </div>
+                        <p class="project-description">${escapeHtml(p.description || 'Без описания')}</p>
+                        ${p.port ? `<p class="project-port">Порт: <a href="http://localhost:${p.port}" target="_blank">${p.port}</a></p>` : ''}
+                        <div class="project-actions">
+                            ${p.status !== 'running' ? 
+                                `<button onclick="startProject(${p.id})" class="btn btn-sm btn-success">▶ Запустить</button>` :
+                                `<button onclick="stopProject(${p.id})" class="btn btn-sm btn-warning">⏹ Остановить</button>`
+                            }
+                            <button onclick="openProject(${p.id})" class="btn btn-sm btn-primary">📂 Открыть</button>
+                            <button onclick="exportProject(${p.id})" class="btn btn-sm btn-secondary">📤 Экспорт</button>
+                            <button onclick="deleteProject(${p.id})" class="btn btn-sm btn-danger">🗑 Удалить</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Обновление селекта проектов в чате
+                select.innerHTML = '<option value="">Общий чат</option>' + 
+                    data.projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+
+            } catch (error) {
+                console.error('Ошибка загрузки проектов:', error);
+                document.getElementById('projects-list').innerHTML = '<p class="error">Ошибка загрузки проектов</p>';
+            }
+        }
+
+        // Создание проекта
+        function showCreateProjectModal() {
+            document.getElementById('create-project-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('create-project-modal').style.display = 'none';
+            document.getElementById('project-name').value = '';
+            document.getElementById('project-description').value = '';
+        }
+
+        async function createProject(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('project-name').value;
+            const description = document.getElementById('project-description').value;
+
+            try {
+                const response = await fetch('/api/projects', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name, description})
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    closeModal();
+                    await loadProjects();
+                } else {
+                    alert(data.error || 'Ошибка создания проекта');
+                }
+            } catch (error) {
+                alert('Ошибка подключения к серверу');
+            }
+        }
+
+        // Управление проектами
+        async function startProject(id) {
+            try {
+                const response = await fetch(`/api/projects/${id}/start`, {method: 'POST'});
+                const data = await response.json();
+                if (response.ok) {
+                    alert(data.message);
+                    await loadProjects();
+                } else {
+                    alert(data.error);
+                }
+            } catch (error) {
+                alert('Ошибка запуска проекта');
+            }
+        }
+
+        async function stopProject(id) {
+            try {
+                const response = await fetch(`/api/projects/${id}/stop`, {method: 'POST'});
+                const data = await response.json();
+                if (response.ok) {
+                    alert(data.message);
+                    await loadProjects();
+                } else {
+                    alert(data.error);
+                }
+            } catch (error) {
+                alert('Ошибка остановки проекта');
+            }
+        }
+
+        function openProject(id) {
+            window.location.href = `/project/${id}`;
+        }
+
+        async function exportProject(id) {
+            window.open(`/api/projects/${id}/export`, '_blank');
+        }
+
+        async function deleteProject(id) {
+            if (!confirm('Вы уверены? Это действие нельзя отменить.')) return;
+
+            try {
+                const response = await fetch(`/api/projects/${id}`, {method: 'DELETE'});
+                const data = await response.json();
+                if (response.ok) {
+                    await loadProjects();
+                } else {
+                    alert(data.error);
+                }
+            } catch (error) {
+                alert('Ошибка удаления проекта');
+            }
+        }
+
+        // Чат
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const sendBtn = document.getElementById('send-btn');
+            const message = input.value.trim();
+            const projectId = document.getElementById('chat-project-select').value;
+
+            if (!message) return;
+
+            // Добавление сообщения пользователя
+            addChatMessage('user', message);
+            input.value = '';
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Думаю...';
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        message,
+                        project_id: projectId ? parseInt(projectId) : null
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const aiResponse = data.response;
+                    let responseText = aiResponse.explanation || '';
+                    
+                    if (aiResponse.code) {
+                        responseText += '\n\n```' + (aiResponse.files?.[0]?.content || aiResponse.code) + '```';
+                    }
+                    
+                    addChatMessage('assistant', responseText);
+                } else {
+                    addChatMessage('error', data.error || 'Ошибка генерации');
+                }
+            } catch (error) {
+                addChatMessage('error', 'Ошибка подключения к серверу');
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Отправить';
+            }
+        }
+
+        function addChatMessage(role, content) {
+            const container = document.getElementById('chat-messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = `chat-message ${role}`;
+            
+            // Простая подсветка кода
+            let formattedContent = escapeHtml(content);
+            formattedContent = formattedContent.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+            formattedContent = formattedContent.replace(/\n/g, '<br>');
+            
+            messageEl.innerHTML = `
+                <div class="message-role">${role === 'user' ? '👤 Вы' : role === 'assistant' ? '🤖 AI' : '⚠️ Ошибка'}</div>
+                <div class="message-content">${formattedContent}</div>
+            `;
+            
+            container.appendChild(messageEl);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function loadChatHistory() {
+            const projectId = document.getElementById('chat-project-select').value;
+            const url = projectId ? `/api/chat/history?project_id=${projectId}` : '/api/chat/history';
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                const container = document.getElementById('chat-messages');
+                container.innerHTML = '';
+                
+                data.messages.forEach(msg => {
+                    addChatMessage(msg.role === 'user' ? 'user' : 'assistant', msg.content);
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки истории:', error);
+            }
+        }
+
+        // Настройки
+        async function loadSettings() {
+            await loadUserInfo();
+            await loadSystemInfo();
+            if (currentUser?.role === 'admin') {
+                await loadContainers();
+                await loadGeminiSettings();
+            }
+        }
+
+        async function loadGeminiSettings() {
+            try {
+                const response = await fetch('/api/settings/gemini');
+                const data = await response.json();
+                
+                const statusEl = document.getElementById('gemini-status');
+                const previewEl = document.getElementById('gemini-key-preview');
+                
+                if (data.configured) {
+                    statusEl.innerHTML = '<span style="color: green;">✅ Настроен</span>';
+                    previewEl.textContent = data.key_preview || '****';
+                } else {
+                    statusEl.innerHTML = '<span style="color: orange;">⚠️ Не настроен</span>';
+                    previewEl.textContent = 'Ключ не установлен';
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки настроек Gemini:', error);
+                document.getElementById('gemini-status').innerHTML = '<span style="color: red;">❌ Ошибка</span>';
+            }
+        }
+
+        async function saveGeminiKey() {
+            const keyInput = document.getElementById('gemini-api-key-input');
+            const newKey = keyInput.value.trim();
+            const resultEl = document.getElementById('gemini-test-result');
+            
+            if (!newKey) {
+                resultEl.innerHTML = '<span style="color: red;">Введите ключ</span>';
+                return;
+            }
+            
+            resultEl.innerHTML = '<span style="color: blue;">Сохранение...</span>';
+            
+            try {
+                const response = await fetch('/api/settings/gemini', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({api_key: newKey})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    resultEl.innerHTML = `<span style="color: green;">✅ ${data.message} (${data.key_preview})</span>`;
+                    keyInput.value = '';
+                    await loadGeminiSettings();
+                } else {
+                    resultEl.innerHTML = `<span style="color: red;">❌ ${data.error || 'Ошибка сохранения'}</span>`;
+                }
+            } catch (error) {
+                resultEl.innerHTML = '<span style="color: red;">❌ Ошибка подключения</span>';
+            }
+        }
+
+        async function testGeminiConnection() {
+            const resultEl = document.getElementById('gemini-test-result');
+            
+            resultEl.innerHTML = '<span style="color: blue;">🔌 Проверка связи...</span>';
+            
+            try {
+                const response = await fetch('/api/settings/gemini/test', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    resultEl.innerHTML = `<span style="color: green;">✅ ${data.message}<br>Ответ: ${data.response || ''}</span>`;
+                } else {
+                    resultEl.innerHTML = `<span style="color: red;">❌ ${data.error || 'Ошибка проверки'}</span>`;
+                }
+            } catch (error) {
+                resultEl.innerHTML = '<span style="color: red;">❌ Ошибка подключения к серверу</span>';
+            }
+        }
+
+        async function loadSystemInfo() {
+            try {
+                const response = await fetch('/api/system/info');
+                const data = await response.json();
+                
+                document.getElementById('system-info').innerHTML = `
+                    <p><strong>Docker:</strong> ${data.docker_available ? '✅ Доступен' : '❌ Недоступен'}</p>
+                    <p><strong>Gemini API:</strong> ${data.gemini_configured ? '✅ Настроен' : '⚠️ Не настроен'}</p>
+                    <p><strong>Занято портов:</strong> ${data.used_ports?.length || 0}</p>
+                    <p><strong>Лимит проектов:</strong> ${data.config.max_projects}</p>
+                    <p><strong>Лимит контейнеров:</strong> ${data.config.max_containers}</p>
+                    <p><strong>Лимит памяти:</strong> ${data.config.memory_limit}</p>
+                    <p><strong>Лимит CPU:</strong> ${data.config.cpu_limit}</p>
+                `;
+            } catch (error) {
+                console.error('Ошибка загрузки системной информации:', error);
+            }
+        }
+
+        async function loadContainers() {
+            try {
+                const response = await fetch('/api/containers');
+                const data = await response.json();
+                
+                const container = document.getElementById('containers-list');
+                if (!data.containers || data.containers.length === 0) {
+                    container.innerHTML = '<p>Нет активных контейнеров</p>';
+                    return;
+                }
+
+                container.innerHTML = data.containers.map(c => `
+                    <div class="container-item">
+                        <span>${c.name}</span>
+                        <span class="status-badge">${c.status}</span>
+                        <span>${c.ports}</span>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Ошибка загрузки контейнеров:', error);
+            }
+        }
+
+        async function cleanupContainers() {
+            if (!confirm('Очистить неиспользуемые ресурсы Docker?')) return;
+
+            try {
+                const response = await fetch('/api/containers/cleanup', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({hours: 24})
+                });
+                const data = await response.json();
+                alert(`Очистка выполнена!\nУдалено контейнеров: ${data.result.stopped_containers?.length || 0}\nУдалено образов: ${data.result.unused_images?.length || 0}`);
+                await loadContainers();
+            } catch (error) {
+                alert('Ошибка очистки');
+            }
+        }
+
+        // Выход
+        async function logout() {
+            await fetch('/api/logout', {method: 'POST'});
+            window.location.href = '/login';
+        }
+
+        // Утилиты
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+
+    <!-- Модальное окно самотестирования -->
+    <div id="selftestModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2>🔍 Самотестирование системы</h2>
+            <div id="selftestResults">
+                <!-- Результаты тестов -->
+            </div>
+        </div>
+    </div>
+</body>
+</html>
