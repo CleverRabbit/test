@@ -1,0 +1,8 @@
+Flask==3.0.0
+python-dotenv==1.0.0
+bcrypt==4.1.2
+google-generativeai==0.3.2
+docker==7.0.0
+pytelegrambotapi==4.15.0
+Werkzeug==3.0.1
+requests==2.31.0
