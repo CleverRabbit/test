@@ -8,6 +8,14 @@ plugins {
     id("com.google.devtools.ksp") version "1.9.20-1.0.14" apply false
 }
 
+buildscript {
+    configurations.all {
+        resolutionStrategy {
+            force("androidx.core:core-ktx:1.12.0")
+        }
+    }
+}
+
 tasks.register("clean", Delete::class) {
     delete(rootProject.layout.buildDirectory)
 }

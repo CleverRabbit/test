@@ -14,7 +14,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MessengerApp"
+rootProject.name = "VibeMessenger"
 
 include(":app")
 include(":core:common")
@@ -25,6 +25,7 @@ include(":core:datastore")
 include(":domain:model")
 include(":domain:repository")
 include(":domain:usecase")
+include(":data")
 include(":feature:auth")
 include(":feature:chat")
 include(":feature:settings")
