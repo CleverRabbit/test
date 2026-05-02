@@ -1,0 +1,56 @@
+```
+# Android build artifacts
+*.apk
+*.aar
+*.dex
+*.so
+
+# Android build directories
+build/
+.gradle/
+captures/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Android Studio navigation editor temp files
+.navigation/
+
+# Android Studio generated files
+*/build/
+!*/src/main/*/build/
+
+# Gradle
+.gradle/
+*.gradle
+
+# Log Files
+*.log
+
+# User-specific configurations
+.idea/
+*.iml
+*.iws
+
+# Environment specific properties
+.env
+.env.local
+*.env.*
+
+# Coverage reports
+coverage/
+*.gcov
+*.lcov
+*.profdata
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+```
