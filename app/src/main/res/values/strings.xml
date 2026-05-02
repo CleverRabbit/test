@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Мессенджер</string>
+    <string name="login_title">Вход в систему</string>
+    <string name="register_title">Регистрация</string>
+    <string name="chat_list_title">Чаты</string>
+    <string name="settings_title">Настройки</string>
+    <string name="send_message">Отправить</string>
+    <string name="type_message">Введите сообщение…</string>
+    <string name="loading">Загрузка…</string>
+    <string name="error_network">Ошибка сети</string>
+    <string name="error_unknown">Неизвестная ошибка</string>
+    <string name="retry">Повторить</string>
+    <string name="logout">Выйти</string>
+    <string name="biometric_title">Биометрическая аутентификация</string>
+    <string name="biometric_subtitle">Подтвердите личность для доступа</string>
+    <string name="theme_system">Системная</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="notifications_enabled">Уведомления включены</string>
+    <string name="notifications_disabled">Уведомления отключены</string>
+    <string name="message_sent">Сообщение отправлено</string>
+    <string name="message_delivered">Сообщение доставлено</string>
+    <string name="message_read">Сообщение прочитано</string>
+    <string name="offline_queue">Ожидает отправки</string>
+    <string name="uploading_media">Загрузка медиа…</string>
+    <string name="compressing_media">Сжатие медиа…</string>
+</resources>

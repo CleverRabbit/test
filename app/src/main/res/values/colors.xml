@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Кастомная палитра для Material 3 -->
+    <color name="primary">#FF1976D2</color>
+    <color name="on_primary">#FFFFFFFF</color>
+    <color name="primary_container">#FFD3E3FD</color>
+    <color name="on_primary_container">#FF001F41</color>
+    <color name="secondary">#FF26A69A</color>
+    <color name="on_secondary">#FFFFFFFF</color>
+    <color name="secondary_container">#FF99F9E8</color>
+    <color name="on_secondary_container">#FF003731</color>
+    <color name="tertiary">#FFFFB74D</color>
+    <color name="on_tertiary">#FF3E2723</color>
+    <color name="background">#FFFAFAFA</color>
+    <color name="on_background">#FF1C1B1F</color>
+    <color name="surface">#FFFAFAFA</color>
+    <color name="on_surface">#FF1C1B1F</color>
+    <color name="error">#FFB3261E</color>
+    <color name="on_error">#FFFFFFFF</color>
+</resources>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <!-- Для отладки можно добавить свой домен -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.messenger.com</domain>
+        <pin-set expiration="2025-01-01">
+            <!-- Добавьте сюда ваши pin-ы для certificate pinning -->
+        </pin-set>
+    </domain-config>
+</network-security-config>
