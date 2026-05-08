@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Исключаем чувствительные данные из бэкапа -->
+    <exclude domain="sharedpref" path="auth_prefs.xml"/>
+    <exclude domain="database" path="tapikapp.db"/>
+</full-backup-content>

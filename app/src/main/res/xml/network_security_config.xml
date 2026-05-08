@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Базовая конфигурация безопасности -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Конфигурация для отладки (разрешаем localhost) -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user" />
+            <certificates src="system" />
+        </trust-anchors>
+    </debug-overrides>
+
+    <!-- Домены API -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.tapikapp.com</domain>
+        <domain includeSubdomains="true">dev-api.tapikapp.com</domain>
+        
+        <!-- Pinning сертификатов для production -->
+        <pin-set expiration="2027-01-01">
+            <!-- Замените на ваши хеши публичных ключей -->
+            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>

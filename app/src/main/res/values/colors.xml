@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Основные цвета бренда -->
+    <color name="primary">#2979FF</color>
+    <color name="primary_variant">#1565C0</color>
+    <color name="secondary">#00E676</color>
+    <color name="secondary_variant">#00C853</color>
+    
+    <!-- Фоновые цвета -->
+    <color name="background_light">#FAFAFA</color>
+    <color name="background_dark">#121212</color>
+    <color name="surface_light">#FFFFFF</color>
+    <color name="surface_dark">#1E1E1E</color>
+    
+    <!-- Цвета текста -->
+    <color name="on_primary">#FFFFFF</color>
+    <color name="on_secondary">#000000</color>
+    <color name="on_background_light">#1C1B1F</color>
+    <color name="on_background_dark">#E6E1E5</color>
+    <color name="on_surface_light">#1C1B1F</color>
+    <color name="on_surface_dark">#E6E1E5</color>
+    
+    <!-- Статусы сообщений -->
+    <color name="message_sent">#81C784</color>
+    <color name="message_delivered">#4CAF50</color>
+    <color name="message_read">#2196F3</color>
+    <color name="message_error">#F44336</color>
+    
+    <!-- Прозрачности -->
+    <color name="transparent">#00000000</color>
+    <color name="scrim">#80000000</color>
+</resources>

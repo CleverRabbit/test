@@ -1,0 +1,64 @@
+```
+# Android build artifacts
+*.apk
+*.aar
+*.jar
+*.class
+
+# Android build directories
+build/
+.gradle/
+captures/
+
+# Android local configuration
+local.properties
+.settings/
+
+# Android studio
+.idea/
+*.iml
+*.iws
+
+# Gradle
+.gradle/
+!gradle.properties
+!gradlew
+!gradlew.bat
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Local configuration
+.env
+.env.local
+*.env.*
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Python (if any)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Node (if any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+*.swp
+*.swo
+*.tmp
+```

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TapikApp</string>
+    
+    <!-- Общие -->
+    <string name="ok">OK</string>
+    <string name="cancel">Отмена</string>
+    <string name="error">Ошибка</string>
+    <string name="loading">Загрузка…</string>
+    <string name="retry">Повторить</string>
+    <string name="no_internet">Нет подключения к интернету</string>
+    
+    <!-- Экран приветствия -->
+    <string name="splash_welcome">Добро пожаловать в TapikApp</string>
+    
+    <!-- Аутентификация -->
+    <string name="auth_title">Вход в аккаунт</string>
+    <string name="auth_phone_hint">Номер телефона</string>
+    <string name="auth_code_hint">Код подтверждения</string>
+    <string name="auth_send_code">Отправить код</string>
+    <string name="auth_verify_code">Подтвердить</string>
+    <string name="auth_biometric_title">Биометрическая аутентификация</string>
+    <string name="auth_biometric_subtitle">Используйте отпечаток пальца или лицо для входа</string>
+    
+    <!-- Список чатов -->
+    <string name="chatlist_title">Чаты</string>
+    <string name="chatlist_empty">У вас пока нет чатов</string>
+    <string name="chatlist_search">Поиск чатов</string>
+    
+    <!-- Чат -->
+    <string name="chat_message_hint">Сообщение</string>
+    <string name="chat_send">Отправить</string>
+    <string name="chat_attachment">Прикрепить</string>
+    <string name="chat_voice_message">Голосовое сообщение</string>
+    <string name="chat_typing">печатает…</string>
+    <string name="chat_online">онлайн</string>
+    <string name="chat_last_seen">был(а) %s</string>
+    
+    <!-- Настройки -->
+    <string name="settings_title">Настройки</string>
+    <string name="settings_profile">Профиль</string>
+    <string name="settings_notifications">Уведомления</string>
+    <string name="settings_privacy">Конфиденциальность</string>
+    <string name="settings_theme">Тема оформления</string>
+    <string name="settings_theme_system">Системная</string>
+    <string name="settings_theme_light">Светлая</string>
+    <string name="settings_theme_dark">Тёмная</string>
+    <string name="settings_language">Язык</string>
+    <string name="settings_logout">Выйти</string>
+    
+    <!-- Биометрия -->
+    <string name="biometric_required">Требуется биометрическая аутентификация</string>
+    <string name="biometric_not_available">Биометрия недоступна на этом устройстве</string>
+    
+    <!-- Ошибки -->
+    <string name="error_network">Ошибка сети</string>
+    <string name="error_timeout">Превышено время ожидания</string>
+    <string name="error_server">Ошибка сервера</string>
+    <string name="error_auth">Ошибка аутентификации</string>
+    <string name="error_unknown">Неизвестная ошибка</string>
+</resources>

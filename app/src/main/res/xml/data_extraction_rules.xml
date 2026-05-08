@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- Исключаем чувствительные данные из облачного бэкапа -->
+        <exclude domain="sharedpref" path="auth_prefs.xml"/>
+        <exclude domain="database" path="tapikapp.db"/>
+        <exclude domain="file" path="no_backup"/>
+    </cloud-backup>
+</data-extraction-rules>
